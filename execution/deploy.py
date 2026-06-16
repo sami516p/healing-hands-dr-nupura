@@ -126,30 +126,44 @@ def main() -> None:
         C.log("VERCEL_TOKEN not in .env. Skipping Vercel deployment.", "WARN")
         vercel_url = f"https://{project_name}.vercel.app (requires token)"
     else:
-        # Set token in environment and run vercel CLI
-        deploy_env = os.environ.copy()
-        deploy_env["VERCEL_TOKEN"] = env_token
+        # Find vercel executable
+        import shutil
+        vercel_exe = shutil.which("vercel")
+        if not vercel_exe:
+            vercel_exe = shutil.which("vercel.cmd")
+        if not vercel_exe:
+            npm_path = Path.home() / "AppData" / "Roaming" / "npm" / "vercel.cmd"
+            if npm_path.exists():
+                vercel_exe = str(npm_path)
 
-        vercel_result = subprocess.run(
-            ["vercel", "--prod", "--yes"],
-            cwd=str(C.ROOT),
-            env=deploy_env,
-            capture_output=True,
-            text=True,
-            timeout=300,
-        )
-
-        if vercel_result.stdout:
-            print(vercel_result.stdout.rstrip())
-        if vercel_result.stderr:
-            print(vercel_result.stderr.rstrip())
-
-        vercel_url = f"https://{project_name}.vercel.app"
-        if vercel_result.returncode != 0:
-            C.log("Vercel deployment failed", "WARN")
-            vercel_url += " (deployment pending)"
+        if not vercel_exe:
+            C.log("vercel CLI not found. Install: npm install -g vercel", "WARN")
+            vercel_url = f"https://{project_name}.vercel.app (requires vercel CLI)"
         else:
-            C.log(f"Deployed to Vercel: {vercel_url}", "INFO")
+            # Set token in environment and run vercel CLI
+            deploy_env = os.environ.copy()
+            deploy_env["VERCEL_TOKEN"] = env_token
+
+            vercel_result = subprocess.run(
+                [vercel_exe, "--prod", "--yes"],
+                cwd=str(C.ROOT),
+                env=deploy_env,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+
+            if vercel_result.stdout:
+                print(vercel_result.stdout.rstrip())
+            if vercel_result.stderr:
+                print(vercel_result.stderr.rstrip())
+
+            vercel_url = f"https://{project_name}.vercel.app"
+            if vercel_result.returncode != 0:
+                C.log("Vercel deployment failed", "WARN")
+                vercel_url += " (deployment pending)"
+            else:
+                C.log(f"Deployed to Vercel: {vercel_url}", "INFO")
 
     # --- Step 6: Write deployment URLs ---
     C.log("=== Deploy: Step 6 — Record deployment URLs ===")
