@@ -4,8 +4,8 @@
 # Sealed previous projects
 archives/
 
-# Collected + generated images are project artifacts, not source
-assets/images/
+# Images are included in deployments
+# assets/images/
 
 # Secrets
 .env
