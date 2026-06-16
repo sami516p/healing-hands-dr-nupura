@@ -144,6 +144,7 @@ def main() -> None:
             deploy_env = os.environ.copy()
             deploy_env["VERCEL_TOKEN"] = env_token
 
+            # Try deployment
             vercel_result = subprocess.run(
                 [vercel_exe, "--prod", "--yes"],
                 cwd=str(C.ROOT),
@@ -152,6 +153,31 @@ def main() -> None:
                 text=True,
                 timeout=300,
             )
+
+            # If missing_scope error, extract scope and retry
+            if "missing_scope" in vercel_result.stdout.lower():
+                try:
+                    import json as js
+                    scope_match = None
+                    for line in vercel_result.stdout.split("\n"):
+                        if '"id"' in line and line.strip().startswith('"id"'):
+                            # Extract scope from response
+                            data = js.loads(vercel_result.stdout)
+                            if data.get("choices"):
+                                scope_match = data["choices"][0].get("id")
+                                break
+                    if scope_match:
+                        C.log(f"Retrying with scope: {scope_match}")
+                        vercel_result = subprocess.run(
+                            [vercel_exe, "--prod", "--yes", "--scope", scope_match],
+                            cwd=str(C.ROOT),
+                            env=deploy_env,
+                            capture_output=True,
+                            text=True,
+                            timeout=300,
+                        )
+                except Exception:
+                    pass
 
             if vercel_result.stdout:
                 print(vercel_result.stdout.rstrip())
