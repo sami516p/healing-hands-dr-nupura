@@ -185,6 +185,17 @@ def main() -> None:
                 print(vercel_result.stderr.rstrip())
 
             vercel_url = f"https://{project_name}.vercel.app"
+
+            # Extract actual URL from output if available
+            output_lines = (vercel_result.stdout + vercel_result.stderr).split("\n")
+            for line in output_lines:
+                if "Aliased:" in line and "vercel.app" in line:
+                    parts = line.split("https://")
+                    if len(parts) > 1:
+                        url_part = parts[1].strip()
+                        vercel_url = "https://" + url_part.split()[0]
+                        break
+
             if vercel_result.returncode != 0:
                 C.log("Vercel deployment failed", "WARN")
                 vercel_url += " (deployment pending)"
